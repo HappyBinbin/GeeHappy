@@ -1,0 +1,5 @@
+# 忽略 IntelliJ IDEA 相关文件
+.idea/
+*.iml
+*.iws
+*.ipr

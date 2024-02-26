@@ -1,6 +1,8 @@
 package lru
 
-import "container/list"
+import (
+	"container/list"
+)
 
 type Cache struct {
 	maxBytes  int64
@@ -39,6 +41,8 @@ func (c *Cache) Add(key string, value Value) {
 		c.nBytes += int64(value.Len()) + int64(len(key))
 		c.cache[key] = ele
 	}
+	//fmt.Printf("c.maxBytes: %d\n", c.maxBytes)
+	//fmt.Printf("c.nBytes: %d\n", c.nBytes)
 	for c.maxBytes != 0 && c.maxBytes < c.nBytes {
 		c.RemoveOldest()
 	}
