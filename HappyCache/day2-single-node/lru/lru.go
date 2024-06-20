@@ -21,8 +21,8 @@ type entry struct {
 	value Value
 }
 
-func New(maxBytes int64, onEvicted func(string, Value)) Cache {
-	return Cache{
+func New(maxBytes int64, onEvicted func(string, Value)) *Cache {
+	return &Cache{
 		maxBytes:  maxBytes,
 		ll:        list.New(),
 		cache:     map[string]*list.Element{},
