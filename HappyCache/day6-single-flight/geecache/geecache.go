@@ -2,6 +2,7 @@ package geecache
 
 import (
 	"fmt"
+	"geecache/singleflight"
 	"log"
 	"sync"
 )
@@ -21,6 +22,10 @@ type Group struct {
 	getter    Getter
 	name      string
 	peers     PeerPicker
+	// use singleflight.Group to make sure that
+	// each key is only fetched once
+	loads     *singleflight.Group
+	callCount int
 }
 
 var (
@@ -47,6 +52,7 @@ func NewGroup(name string, cacheByte int64, getter Getter) *Group {
 		mainCache: cache{cacheBytes: cacheByte},
 		getter:    getter,
 		name:      name,
+		loads:     &singleflight.Group{},
 	}
 
 	groups[name] = group
@@ -73,15 +79,26 @@ func (g *Group) Get(key string) (value ByteView, err error) {
 }
 
 func (g *Group) load(key string) (value ByteView, err error) {
-	if g.peers != nil {
-		if peer, ok := g.peers.PickPeer(key); ok {
-			if value, err = g.getFormPeer(peer, key); err == nil {
-				return value, nil
+	// each key is only fetched once (either locally or remotely)
+	// regardless of the number of concurrent callers.
+	viewi, err := g.loads.Do(key, func() (interface{}, error) {
+		g.callCount++
+		log.Printf("[Load call] ============ callcount: %d", g.callCount)
+		if g.peers != nil {
+			if peer, ok := g.peers.PickPeer(key); ok {
+				if value, err = g.getFormPeer(peer, key); err == nil {
+					return value, nil
+				}
+				log.Println("[GeeCache] Failed to get from peer", err)
 			}
-			log.Println("[GeeCache] Failed to get from peer", err)
 		}
+		return g.getLocally(key)
+	})
+
+	if err == nil {
+		return viewi.(ByteView), nil
 	}
-	return g.getLocally(key)
+	return
 }
 
 func (g *Group) getFormPeer(peer PeerGetter, key string) (ByteView, error) {

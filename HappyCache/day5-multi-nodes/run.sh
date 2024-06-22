@@ -1,5 +1,5 @@
 #!/bin/bash
-trap "kill 0" EXIT
+trap "rm server;kill 0" EXIT
 
 go build -o server
 ./server -port=8001 &
