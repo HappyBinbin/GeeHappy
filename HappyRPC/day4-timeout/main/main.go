@@ -1,7 +1,8 @@
 package main
 
 import (
-	"day3_codec"
+	"context"
+	"day4_codec"
 	"log"
 	"net"
 	"sync"
@@ -18,7 +19,7 @@ func (f Foo) Sum(args Args, reply *int) error {
 
 func startServer(addr chan string) {
 	var foo Foo
-	if err := day3_codec.Register(&foo); err != nil {
+	if err := day4_codec.Register(&foo); err != nil {
 		log.Fatal("register error:", err)
 	}
 	// pick a free port
@@ -28,7 +29,7 @@ func startServer(addr chan string) {
 	}
 	log.Println("start rpc server on", l.Addr())
 	addr <- l.Addr().String()
-	day3_codec.Accept(l)
+	day4_codec.Accept(l)
 }
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 	addr := make(chan string)
 	go startServer(addr)
 
-	client, _ := day3_codec.Dial("tcp", <-addr)
+	client, _ := day4_codec.Dial("tcp", <-addr)
 	defer func() { _ = client.Close() }()
 
 	time.Sleep(time.Second)
@@ -48,7 +49,7 @@ func main() {
 			defer wg.Done()
 			args := &Args{Num1: i, Num2: i * i}
 			var reply int
-			if err := client.Call("Foo.Sum", args, &reply); err != nil {
+			if err := client.Call(context.Background(), "Foo.Sum", args, &reply); err != nil {
 				log.Fatal("call Foo.Sum error:", err)
 			}
 			log.Printf("%d + %d = %d", args.Num1, args.Num2, reply)

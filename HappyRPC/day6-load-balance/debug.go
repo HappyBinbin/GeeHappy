@@ -1,4 +1,4 @@
-package day5_codec
+package day6_load_balance
 
 import (
 	"fmt"

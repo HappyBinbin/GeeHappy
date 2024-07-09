@@ -1,4 +1,4 @@
-package day3_codec
+package day4_codec
 
 import (
 	"go/ast"

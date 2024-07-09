@@ -1,3 +1,3 @@
-module day4_codec
+module day5_codec
 
 go 1.20

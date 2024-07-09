@@ -1,7 +1,7 @@
-package day2_codec
+package day3_codec
 
 import (
-	"day2_codec/codec"
+	"day3_codec/codec"
 	"encoding/json"
 	"errors"
 	"fmt"

@@ -1,9 +1,9 @@
-package day5_codec
+package day6_load_balance
 
 import (
 	"bufio"
 	"context"
-	"day5_codec/codec"
+	"day6_load_balance/codec"
 	"encoding/json"
 	"errors"
 	"fmt"

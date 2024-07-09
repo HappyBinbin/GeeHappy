@@ -1,7 +1,8 @@
-package day3_codec
+package day4_codec
 
 import (
-	"day3_codec/codec"
+	"context"
+	"day4_codec/codec"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -101,9 +102,15 @@ func (c *Client) terminateCalls(err error) {
 
 // Call invokes the named function, waits for it to complete,
 // and returns its error status.
-func (c *Client) Call(serviceMethod string, args, reply interface{}) error {
+func (c *Client) Call(ctx context.Context, serviceMethod string, args, reply interface{}) error {
 	call := <-c.Go(serviceMethod, args, reply, make(chan *Call, 1)).Done
-	return call.Error
+	select {
+	case <-ctx.Done():
+		c.removeCall(call.Seq)
+		return errors.New("rpc client: call failed: " + ctx.Err().Error())
+	case call := <-call.Done:
+		return call.Error
+	}
 }
 
 // Go invokes the function asynchronously.
@@ -155,24 +162,50 @@ func (c *Client) send(call *Call) {
 	}
 }
 
-func Dial(network, address string, opts ...*Option) (client *Client, err error) {
+type clientResult struct {
+	client *Client
+	err    error
+}
+
+type newClientFunc func(conn net.Conn, opt *Option) (client *Client, err error)
+
+func dialTimeout(f newClientFunc, network, address string, opts ...*Option) (client *Client, err error) {
 	opt, err := parseOptions(opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := net.Dial(network, address)
+	conn, err := net.DialTimeout(network, address, opt.ConnectionTimeout)
 	if err != nil {
 		return nil, err
 	}
-
 	defer func() {
 		if err != nil {
 			_ = conn.Close()
 		}
 	}()
 
-	return NewClient(conn, opt)
+	ch := make(chan clientResult)
+	go func() {
+		client, err = f(conn, opt)
+		ch <- clientResult{client, err}
+	}()
+
+	if opt.ConnectionTimeout == 0 {
+		result := <-ch
+		return result.client, result.err
+	}
+
+	select {
+	case <-time.After(opt.ConnectionTimeout):
+		return nil, fmt.Errorf("rpc client: connect timeout: expect within %s", opt.ConnectionTimeout)
+	case result := <-ch:
+		return result.client, result.err
+	}
+}
+
+func Dial(network, address string, opts ...*Option) (client *Client, err error) {
+	return dialTimeout(NewClient, network, address, opts...)
 }
 
 func parseOptions(opts ...*Option) (*Option, error) {
